@@ -5,17 +5,19 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Alert, AlertDescription } from './ui/alert';
 import { AlertCircle, BarChart3, TrendingUp, Users } from 'lucide-react';
+import { api, setTokens } from '@/lib/api';
 
-interface LoginPageProps {
-  onLogin: () => void;
-}
+type LoginPageProps = {
+  onLogin?: () => void; // notifica al App que ya hay sesión
+};
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin }: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string>('');
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -24,8 +26,27 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       return;
     }
 
-    // Mock login - accept any credentials for demo
-    onLogin();
+    setBusy(true);
+    try {
+      // llamar backend -> guarda tokens
+      await api.login(username, password);
+
+      // opcional: obtener info de usuario
+      const me = await api.me();
+      localStorage.setItem('authUser', JSON.stringify(me));
+
+      // avisar al App que ya inició sesión
+      onLogin?.();
+
+      // opcional: actualizar URL sin recargar
+      try { history.replaceState(null, '', '/'); } catch {}
+    } catch (err: any) {
+      // si algo falla, limpia tokens y muestra mensaje
+      setTokens(null);
+      setError(err?.message || 'No se pudo iniciar sesión');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -116,6 +137,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Ingresa tu usuario"
                   className="bg-input-background border-input h-11 transition-all duration-200 focus:ring-2 focus:ring-accent/20"
+                  autoComplete="username"
                 />
               </div>
 
@@ -128,6 +150,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Ingresa tu contraseña"
                   className="bg-input-background border-input h-11 transition-all duration-200 focus:ring-2 focus:ring-accent/20"
+                  autoComplete="current-password"
                 />
               </div>
 
@@ -138,11 +161,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 </Alert>
               )}
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
+                disabled={busy}
                 className="w-full h-11 bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                Iniciar sesión
+                {busy ? 'Ingresando…' : 'Iniciar sesión'}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground mt-6">

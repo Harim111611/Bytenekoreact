@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api, getTokens, setTokens } from '@/lib/api';
 import { KPICard } from './KPICard';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -26,9 +27,33 @@ const recentActivity = [
   { id: 4, name: 'Test Producto A', status: 'Activa', sample: 200, progress: 45 },
 ];
 
-export function DashboardPage() {
+function DashboardPage() {
   const [period, setPeriod] = useState('30');
   const [workspace, setWorkspace] = useState('general');
+
+  // (Opcional) validación silenciosa de sesión
+  useEffect(() => {
+    let cancelled = false;
+    async function checkSession() {
+      const tokens = getTokens();
+      const rawUser = localStorage.getItem('authUser');
+
+      if (!tokens || !rawUser) {
+        // Aquí no navegamos; App ya controla sesión (isLoggedIn)
+        return;
+      }
+      try {
+        await api.me(); // valida token/refresh
+      } catch {
+        if (!cancelled) {
+          setTokens(null);
+          localStorage.removeItem('authUser');
+        }
+      }
+    }
+    checkSession();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="p-8 space-y-8">
@@ -64,25 +89,25 @@ export function DashboardPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard 
-          label="Encuestas activas" 
-          value={12} 
+        <KPICard
+          label="Encuestas activas"
+          value={12}
           delta="+3 vs mes anterior"
           deltaPositive
         />
-        <KPICard 
-          label="Respuestas hoy" 
-          value={147} 
+        <KPICard
+          label="Respuestas hoy"
+          value={147}
           delta="+12%"
           deltaPositive
         />
-        <KPICard 
-          label="Total respuestas" 
-          value="3,200" 
+        <KPICard
+          label="Total respuestas"
+          value="3,200"
         />
-        <KPICard 
-          label="Tasa de finalización" 
-          value="83%" 
+        <KPICard
+          label="Tasa de finalización"
+          value="83%"
           delta="+5%"
           deltaPositive
         />
@@ -94,27 +119,27 @@ export function DashboardPage() {
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
-            <XAxis 
-              dataKey="day" 
+            <XAxis
+              dataKey="day"
               className="stroke-muted-foreground"
               style={{ fontSize: '14px' }}
             />
-            <YAxis 
+            <YAxis
               className="stroke-muted-foreground"
               style={{ fontSize: '14px' }}
             />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))', 
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
                 color: 'hsl(var(--card-foreground))'
               }}
             />
-            <Line 
-              type="monotone" 
-              dataKey="responses" 
-              stroke="#3B82F6" 
+            <Line
+              type="monotone"
+              dataKey="responses"
+              stroke="#3B82F6"
               strokeWidth={2}
               dot={{ fill: '#3B82F6', r: 4 }}
               activeDot={{ r: 6 }}
@@ -156,7 +181,7 @@ export function DashboardPage() {
               <TableRow key={item.id} className="transition-colors hover:bg-secondary/50">
                 <TableCell style={{ fontWeight: 500 }}>{item.name}</TableCell>
                 <TableCell>
-                  <Badge 
+                  <Badge
                     variant={item.status === 'Activa' ? 'default' : 'secondary'}
                     className={item.status === 'Activa' ? 'bg-success hover:bg-success/90' : ''}
                   >
@@ -180,3 +205,7 @@ export function DashboardPage() {
     </div>
   );
 }
+
+// Export nombrado (para tu import actual) y default (por si lo usas después)
+export { DashboardPage };
+export default DashboardPage;
